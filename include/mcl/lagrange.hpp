@@ -15,14 +15,19 @@ namespace mcl {
 template<class G, class F>
 void LagrangeInterpolation(bool *pb, G& out, const F *S, const G *vec, size_t k)
 {
+	if (k == 0) {
+		*pb = false;
+		return;
+	}
+	if (k == 1) {
+		out = vec[0];
+		*pb = true;
+		return;
+	}
 	/*
 		delta_{i,S}(0) = prod_{j != i} S[j] / (S[j] - S[i]) = a / b
 		where a = prod S[j], b = S[i] * prod_{j != i} (S[j] - S[i])
 	*/
-	if (k < 2) {
-		*pb = false;
-		return;
-	}
 	F a = S[0];
 	for (size_t i = 1; i < k; i++) {
 		a *= S[i];
@@ -58,13 +63,18 @@ void LagrangeInterpolation(bool *pb, G& out, const F *S, const G *vec, size_t k)
 
 /*
 	out = f(x) = c[0] + c[1] * x + c[2] * x^2 + ... + c[cSize - 1] * x^(cSize - 1)
-	@retval 0 if succeed else -1
+	@retval 0 if succeed else -1 (if cSize == 0)
 */
 template<class G, class T>
 void evaluatePolynomial(bool *pb, G& out, const G *c, size_t cSize, const T& x)
 {
-	if (cSize < 2) {
+	if (cSize == 0) {
 		*pb = false;
+		return;
+	}
+	if (cSize == 1) {
+		out = c[0];
+		*pb = true;
 		return;
 	}
 	G y = c[cSize - 1];

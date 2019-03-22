@@ -68,6 +68,8 @@ typedef struct mclBnFr mclBnFr;
 typedef struct mclBnG1 mclBnG1;
 typedef struct mclBnG2 mclBnG2;
 typedef struct mclBnGT mclBnGT;
+typedef struct mclBnFp mclBnFp;
+typedef struct mclBnFp2 mclBnFp2;
 
 #else
 
@@ -87,6 +89,14 @@ typedef struct {
 	uint64_t d[MCLBN_FP_UNIT_SIZE * 12];
 } mclBnGT;
 
+typedef struct {
+	uint64_t d[MCLBN_FP_UNIT_SIZE];
+} mclBnFp;
+
+typedef struct {
+	mclBnFp d[2];
+} mclBnFp2;
+
 #endif
 
 #include <mcl/curve_type.h>
@@ -102,6 +112,8 @@ enum {
 	mclBls12_CurveFp381 = 5
 };
 
+// return 0xABC which means A.BC
+MCLBN_DLL_API int mclBn_getVersion();
 /*
 	init library
 	@param curve [in] type of bn curve
@@ -146,6 +158,10 @@ MCLBN_DLL_API int mclBn_getG1ByteSize(void);
 	return bytes for serialized Fr
 */
 MCLBN_DLL_API int mclBn_getFrByteSize(void);
+/*
+	return bytes for serialized Fp
+*/
+MCLBN_DLL_API int mclBn_getFpByteSize(void);
 
 /*
 	return decimal string of the order of the curve(=the characteristic of Fr)
@@ -168,6 +184,8 @@ MCLBN_DLL_API mclSize mclBnFr_deserialize(mclBnFr *x, const void *buf, mclSize b
 MCLBN_DLL_API mclSize mclBnG1_deserialize(mclBnG1 *x, const void *buf, mclSize bufSize);
 MCLBN_DLL_API mclSize mclBnG2_deserialize(mclBnG2 *x, const void *buf, mclSize bufSize);
 MCLBN_DLL_API mclSize mclBnGT_deserialize(mclBnGT *x, const void *buf, mclSize bufSize);
+MCLBN_DLL_API mclSize mclBnFp_deserialize(mclBnFp *x, const void *buf, mclSize bufSize);
+MCLBN_DLL_API mclSize mclBnFp2_deserialize(mclBnFp2 *x, const void *buf, mclSize bufSize);
 
 /*
 	serialize
@@ -177,6 +195,8 @@ MCLBN_DLL_API mclSize mclBnFr_serialize(void *buf, mclSize maxBufSize, const mcl
 MCLBN_DLL_API mclSize mclBnG1_serialize(void *buf, mclSize maxBufSize, const mclBnG1 *x);
 MCLBN_DLL_API mclSize mclBnG2_serialize(void *buf, mclSize maxBufSize, const mclBnG2 *x);
 MCLBN_DLL_API mclSize mclBnGT_serialize(void *buf, mclSize maxBufSize, const mclBnGT *x);
+MCLBN_DLL_API mclSize mclBnFp_serialize(void *buf, mclSize maxBufSize, const mclBnFp *x);
+MCLBN_DLL_API mclSize mclBnFp2_serialize(void *buf, mclSize maxBufSize, const mclBnFp2 *x);
 
 /*
 	set string
@@ -190,6 +210,7 @@ MCLBN_DLL_API int mclBnFr_setStr(mclBnFr *x, const char *buf, mclSize bufSize, i
 MCLBN_DLL_API int mclBnG1_setStr(mclBnG1 *x, const char *buf, mclSize bufSize, int ioMode);
 MCLBN_DLL_API int mclBnG2_setStr(mclBnG2 *x, const char *buf, mclSize bufSize, int ioMode);
 MCLBN_DLL_API int mclBnGT_setStr(mclBnGT *x, const char *buf, mclSize bufSize, int ioMode);
+MCLBN_DLL_API int mclBnFp_setStr(mclBnFp *x, const char *buf, mclSize bufSize, int ioMode);
 
 /*
 	buf is terminated by '\0'
@@ -199,22 +220,38 @@ MCLBN_DLL_API mclSize mclBnFr_getStr(char *buf, mclSize maxBufSize, const mclBnF
 MCLBN_DLL_API mclSize mclBnG1_getStr(char *buf, mclSize maxBufSize, const mclBnG1 *x, int ioMode);
 MCLBN_DLL_API mclSize mclBnG2_getStr(char *buf, mclSize maxBufSize, const mclBnG2 *x, int ioMode);
 MCLBN_DLL_API mclSize mclBnGT_getStr(char *buf, mclSize maxBufSize, const mclBnGT *x, int ioMode);
+MCLBN_DLL_API mclSize mclBnFp_getStr(char *buf, mclSize maxBufSize, const mclBnFp *x, int ioMode);
 
 // set zero
 MCLBN_DLL_API void mclBnFr_clear(mclBnFr *x);
+MCLBN_DLL_API void mclBnFp_clear(mclBnFp *x);
+MCLBN_DLL_API void mclBnFp2_clear(mclBnFp2 *x);
 
 // set x to y
 MCLBN_DLL_API void mclBnFr_setInt(mclBnFr *y, mclInt x);
 MCLBN_DLL_API void mclBnFr_setInt32(mclBnFr *y, int x);
 
-// mask buf with (1 << (bitLen(r) - 1)) - 1 if buf >= r
+// x = buf & (1 << bitLen(r)) - 1
+// if (x >= r) x &= (1 << (bitLen(r) - 1)) - 1
+// always return 0
 MCLBN_DLL_API int mclBnFr_setLittleEndian(mclBnFr *x, const void *buf, mclSize bufSize);
+MCLBN_DLL_API int mclBnFp_setLittleEndian(mclBnFp *x, const void *buf, mclSize bufSize);
+
+// set (buf mod r) to x
+// return 0 if bufSize <= (byte size of Fr * 2) else -1
+MCLBN_DLL_API int mclBnFr_setLittleEndianMod(mclBnFr *x, const void *buf, mclSize bufSize);
+// set (buf mod p) to x
+// return 0 if bufSize <= (byte size of Fp * 2) else -1
+MCLBN_DLL_API int mclBnFp_setLittleEndianMod(mclBnFp *x, const void *buf, mclSize bufSize);
 
 // return 1 if true and 0 otherwise
 MCLBN_DLL_API int mclBnFr_isValid(const mclBnFr *x);
 MCLBN_DLL_API int mclBnFr_isEqual(const mclBnFr *x, const mclBnFr *y);
 MCLBN_DLL_API int mclBnFr_isZero(const mclBnFr *x);
 MCLBN_DLL_API int mclBnFr_isOne(const mclBnFr *x);
+
+MCLBN_DLL_API int mclBnFp_isEqual(const mclBnFp *x, const mclBnFp *y);
+MCLBN_DLL_API int mclBnFp2_isEqual(const mclBnFp2 *x, const mclBnFp2 *y);
 
 #ifndef MCL_DONT_USE_CSRPNG
 // return 0 if success
@@ -234,7 +271,12 @@ MCLBN_DLL_API void mclBn_setRandFunc(void *self, unsigned int (*readFunc)(void *
 // hash(s) and set x
 // return 0 if success
 MCLBN_DLL_API int mclBnFr_setHashOf(mclBnFr *x, const void *buf, mclSize bufSize);
+MCLBN_DLL_API int mclBnFp_setHashOf(mclBnFp *x, const void *buf, mclSize bufSize);
 
+// map x to y
+// return 0 if success else -1
+MCLBN_DLL_API int mclBnFp_mapToG1(mclBnG1 *y, const mclBnFp *x);
+MCLBN_DLL_API int mclBnFp2_mapToG2(mclBnG2 *y, const mclBnFp2 *x);
 
 MCLBN_DLL_API void mclBnFr_neg(mclBnFr *y, const mclBnFr *x);
 MCLBN_DLL_API void mclBnFr_inv(mclBnFr *y, const mclBnFr *x);
@@ -350,6 +392,7 @@ MCLBN_DLL_API void mclBn_precomputedMillerLoop2mixed(mclBnGT *f, const mclBnG1 *
 	Lagrange interpolation
 	recover out = y(0) by { (xVec[i], yVec[i]) }
 	return 0 if success else -1
+	@note *out = yVec[0] if k = 1
 	@note k >= 2, xVec[i] != 0, xVec[i] != xVec[j] for i != j
 */
 MCLBN_DLL_API int mclBn_FrLagrangeInterpolation(mclBnFr *out, const mclBnFr *xVec, const mclBnFr *yVec, mclSize k);
@@ -372,6 +415,13 @@ MCLBN_DLL_API int mclBn_G2EvaluatePolynomial(mclBnG2 *out, const mclBnG2 *cVec, 
 */
 MCLBN_DLL_API void mclBn_verifyOrderG1(int doVerify);
 MCLBN_DLL_API void mclBn_verifyOrderG2(int doVerify);
+
+/*
+	EXPERIMENTAL
+	only for curve = MCL_SECP* or MCL_NIST*
+	return standard base point of the current elliptic curve
+*/
+MCLBN_DLL_API int mclBnG1_getBasePoint(mclBnG1 *x);
 
 #ifdef __cplusplus
 }

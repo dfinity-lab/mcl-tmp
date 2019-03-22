@@ -26,6 +26,8 @@
 
 namespace mcl {
 
+static const int version = 0x092; /* 0xABC = A.BC */
+
 /*
 	specifies available string format mode for X::setIoMode()
 	// for Fp, Fp2, Fp6, Fp12
@@ -59,7 +61,7 @@ namespace mcl {
 	IoArray
 		array of Unit(fixed size = Fp::getByteSize())
 	IoArrayRaw
-		array of Unit(fixed size = Fp::getByteSize()) without Montgomery convresion
+		array of Unit(fixed size = Fp::getByteSize()) without Montgomery conversion
 
 	// for Ec::setIoMode()
 	IoEcAffine(default)
@@ -127,6 +129,15 @@ typedef int (*int2u)(Unit*, const Unit*);
 typedef Unit (*u1uII)(Unit*, Unit, Unit);
 typedef Unit (*u3u)(Unit*, const Unit*, const Unit*);
 
+/*
+	disable -Wcast-function-type
+	the number of arguments of some JIT functions is smaller than that of T
+*/
+template<class T, class S>
+T func_ptr_cast(S func)
+{
+	return reinterpret_cast<T>(reinterpret_cast<void*>(func));
+}
 struct Block {
 	const Unit *p; // pointer to original FpT.v_
 	size_t n;
@@ -152,7 +163,8 @@ enum PrimeMode {
 enum MaskMode {
 	NoMask = 0, // throw if greater or equal
 	SmallMask = 1, // 1-bit smaller mask if greater or equal
-	MaskAndMod = 2 // mask and substract if greater or equal
+	MaskAndMod = 2, // mask and substract if greater or equal
+	Mod = 3 // mod p
 };
 
 struct Op {
@@ -165,6 +177,7 @@ struct Op {
 	mpz_class mp;
 	uint32_t pmod4;
 	mcl::SquareRoot sq;
+	mcl::Modp modp;
 	Unit half[maxUnitSize]; // (p + 1) / 2
 	Unit oneRep[maxUnitSize]; // 1(=inv R if Montgomery)
 	/*

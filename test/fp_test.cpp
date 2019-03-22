@@ -347,7 +347,6 @@ void compareTest()
 
 void moduloTest(const char *pStr)
 {
-std::cout << std::hex;
 	std::string str;
 	Fp::getModulo(str);
 	CYBOZU_TEST_EQUAL(str, mcl::gmp::getStr(mpz_class(pStr)));
@@ -565,6 +564,43 @@ void setArrayMaskTest2(mcl::fp::Mode mode)
 	}
 }
 
+void setArrayModTest()
+{
+	const mpz_class& p = Fp::getOp().mp;
+	const mpz_class tbl[] = {
+		0,
+		1,
+		p - 1,
+		p,
+		p + 1,
+		p * 2 - 1,
+		p * 2,
+		p * 2 + 1,
+		p * (p - 1) - 1,
+		p * (p - 1),
+		p * (p - 1) + 1,
+		p * p - 1,
+		p * p,
+		p * p + 1,
+		(mpz_class(1) << Fp::getOp().N * mcl::fp::UnitBitSize * 2) - 1,
+	};
+	const size_t unitByteSize = sizeof(mcl::fp::Unit);
+	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(tbl); i++) {
+		const mpz_class& x = tbl[i];
+		const mcl::fp::Unit *px = mcl::gmp::getUnit(x);
+		const size_t xn = mcl::gmp::getUnitSize(x);
+		const size_t xByteSize = xn * unitByteSize;
+		const size_t fpByteSize = unitByteSize * Fp::getOp().N;
+		Fp y;
+		bool b;
+		y.setArray(&b, px, xn, mcl::fp::Mod);
+		bool expected = xByteSize <= fpByteSize * 2;
+		CYBOZU_TEST_EQUAL(b, expected);
+		if (!b) continue;
+		CYBOZU_TEST_EQUAL(y.getMpz(), x % p);
+	}
+}
+
 CYBOZU_TEST_AUTO(set64bit)
 {
 	Fp::init("0x1000000000000000000f");
@@ -777,6 +813,37 @@ void serializeTest()
 	}
 }
 
+void modpTest()
+{
+	const mpz_class& p = Fp::getOp().mp;
+	const mpz_class tbl[] = {
+		0,
+		1,
+		p - 1,
+		p,
+		p + 1,
+		p * 2 - 1,
+		p * 2,
+		p * 2 + 1,
+		p * (p - 1) - 1,
+		p * (p - 1),
+		p * (p - 1) + 1,
+		p * p - 1,
+		p * p,
+		p * p + 1,
+		(mpz_class(1) << Fp::getOp().N * mcl::fp::UnitBitSize * 2) - 1,
+	};
+	mcl::Modp modp;
+	modp.init(p);
+	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(tbl); i++) {
+		const mpz_class& x = tbl[i];
+		mpz_class r1, r2;
+		r1 = x % p;
+		modp.modp(r2, x);
+		CYBOZU_TEST_EQUAL(r1, r2);
+	}
+}
+
 #include <iostream>
 #if (defined(MCL_USE_LLVM) || defined(MCL_USE_XBYAK)) && (MCL_MAX_BIT_SIZE >= 521)
 CYBOZU_TEST_AUTO(mod_NIST_P521)
@@ -880,12 +947,14 @@ void sub(mcl::fp::Mode mode)
 		powGmp();
 		setArrayTest1();
 		setArrayMaskTest1();
+		setArrayModTest();
 		getUint64Test();
 		getInt64Test();
 		divBy2Test();
 		getStrTest();
 		setHashOfTest();
 		serializeTest();
+		modpTest();
 	}
 	anotherFpTest(mode);
 	setArrayTest2(mode);

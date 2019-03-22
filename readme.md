@@ -10,8 +10,8 @@ mcl is a library for pairing-based cryptography.
 The current version supports the optimal Ate pairing over BN curves and BLS12-381 curves.
 
 # News
-* The default name of the shared library is renamed fromlibmcl_dy.a to libmcl.a.
-    * Use `cmake -DUSE_OLD_SHARED_NAME=ON` if you want to use the old name.
+* (Break backward compatibility) libmcl_dy.a is renamed to libmcl.a
+    * The option SHARE_BASENAME_SUF is removed
 * 2nd argument of `mclBn_init` is changed from `maxUnitSize` to `compiledTimeVar`, which must be `MCLBN_COMPILED_TIME_VAR`.
 * break backward compatibility of mapToGi for BLS12. A map-to-function for BN is used.
 If `MCL_USE_OLD_MAPTO_FOR_BLS12` is defined, then the old function is used, but this will be removed in the future.
@@ -110,6 +110,18 @@ git clone git://github.com/herumi/mcl
 git clone git://github.com/herumi/cybozulib_ext ; for only Windows
 ```
 * Cybozulib\_ext is a prerequisite for running OpenSSL and GMP on VC (Visual C++).
+
+# (Option) Without GMP
+```
+make MCL_USE_GMP=0
+```
+Define `MCL_USE_VINT` before including `bn.hpp`
+
+# (Option) Without Openssl
+```
+make MCL_USE_OPENSSL=0
+```
+Define `MCL_DONT_USE_OPENSSL` before including `bn.hpp`
 
 # Build and test on x86-64 Linux, macOS, ARM and ARM64 Linux
 To make lib/libmcl.a and test it:
@@ -219,7 +231,7 @@ finalExp 546.259Kclk
 ## C++ library
 
 * libmcl.a ; static C++ library of mcl
-* libmcl\_dy.so ; shared C++ library of mcl
+* libmcl.so ; shared C++ library of mcl
 * the default parameter of curveType is BN254
 
 header        |support curveType        |sizeof Fr|sizeof Fp|
@@ -243,15 +255,12 @@ libmclbn384.a     |          6       |         6        |
 
 
 * libmclbn*.a ; static C library
-* libmclbn*\_dy.so ; shared C library
+* libmclbn*.so ; shared C library
 
 ### 2nd argument of `mclBn_init`
 Specify `MCLBN_COMPILED_TIME_VAR` to 2nd argument of `mclBn_init`, which
 is defined as `MCLBN_FR_UNIT_SIZE * 10 + MCLBN_FP_UNIT_SIZE`.
 This parameter is used to make sure that the values are the same when the library is built and used.
-
-### shared library name
-If you want to remove `_dy` of so files, then `makeSHARE_BASENAME_SUF=`.
 
 # How to initialize pairing library
 Call `mcl::bn256::initPairing` before calling any operations.
@@ -343,6 +352,44 @@ getStr() method gets
 * `2 <x>` ; compressed format for even y
 * `3 <x>` ; compressed format for odd y
 
+## Generator of G1 and G2
+
+If you want to use the same generators of BLS12-381 with [zkcrypto](https://github.com/zkcrypto/pairing/tree/master/src/bls12_381#g2) then,
+
+```
+// G1 P
+P.setStr('1 3685416753713387016781088315183077757961620795782546409894578378688607592378376318836054947676345821548104185464507 1339506544944476473020471379941921221584933875938349620426543736416511423956333506472724655353366534992391756441569')
+
+// G2 Q
+Q.setStr('1 352701069587466618187139116011060144890029952792775240219908644239793785735715026873347600343865175952761926303160 3059144344244213709971259814753781636986470325476647558659373206291635324768958432433509563104347017837885763365758 1985150602287291935568054521177171638300868978215655730859378665066344726373823718423869104263333984641494340347905 927553665492332455747201965776037880757740193453592970025027978793976877002675564980949289727957565575433344219582')
+```
+
+## Serialization format of G1 and G2
+
+pseudo-code to serialize of p
+```
+if bit-length(p) % 8 != 0:
+  size = Fp::getByteSize()
+  if p is zero:
+    return [0] * size
+  else:
+    s = x.serialize()
+    # x in Fp2 is odd <=> x.a is odd
+    if y is odd:
+      s[byte-length(s) - 1] |= 0x80
+    return s
+else:
+  size = Fp::getByteSize() + 1
+  if p is zero:
+    return [0] * size
+  else:
+    s = x.serialize()
+    if y is odd:
+      return 2:s
+    else:
+      return 3:s
+```
+
 ## Verify an element in G2
 `G2::isValid()` checks that the element is in the curve of G2 and the order of it is r for subgroup attack.
 `G2::set()`, `G2::setStr` and `operator<<` also check the order.
@@ -393,6 +440,17 @@ This library contains some part of the followings software licensed by BSD-3-Cla
   SAC 2011, ([preprint](https://eprint.iacr.org/2008/530))
 * [_Skew Frobenius Map and Efficient Scalar Multiplication for Pairing–Based Cryptography_](https://www.researchgate.net/publication/221282560_Skew_Frobenius_Map_and_Efficient_Scalar_Multiplication_for_Pairing-Based_Cryptography),
 Y. Sakemi, Y. Nogami, K. Okeya, Y. Morikawa, CANS 2008.
+
+# History
+
+* 2019/Mar/22 v0.92 shortcut for Ec::mul(Px, P, x) if P = 0
+* 2019/Mar/21 python binding of she256 for Linux/Mac/Windows
+* 2019/Mar/14 v0.91 modp supports mcl-wasm
+* 2019/Mar/12 v0.90 fix Vint::setArray(x) for x == this
+* 2019/Mar/07 add mclBnFr_setLittleEndianMod, mclBnFp_setLittleEndianMod
+* 2019/Feb/20 LagrangeInterpolation sets out = yVec[0] if k = 1
+* 2019/Jan/31 add mclBnFp_mapToG1, mclBnFp2_mapToG2
+* 2019/Jan/31 fix crash on x64-CPU without AVX (thanks to mortdeus)
 
 # Author
 

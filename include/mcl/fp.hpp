@@ -132,15 +132,15 @@ public:
 		}
 		inv(inv2_, 2);
 #ifdef MCL_XBYAK_DIRECT_CALL
-		add = (void (*)(FpT& z, const FpT& x, const FpT& y))op_.fp_addA_;
+		add = fp::func_ptr_cast<void (*)(FpT& z, const FpT& x, const FpT& y)>(op_.fp_addA_);
 		if (add == 0) add = addC;
-		sub = (void (*)(FpT& z, const FpT& x, const FpT& y))op_.fp_subA_;
+		sub = fp::func_ptr_cast<void (*)(FpT& z, const FpT& x, const FpT& y)>(op_.fp_subA_);
 		if (sub == 0) sub = subC;
-		neg = (void (*)(FpT& y, const FpT& x))op_.fp_negA_;
+		neg = fp::func_ptr_cast<void (*)(FpT& y, const FpT& x)>(op_.fp_negA_);
 		if (neg == 0) neg = negC;
-		mul = (void (*)(FpT& z, const FpT& x, const FpT& y))op_.fp_mulA_;
+		mul = fp::func_ptr_cast<void (*)(FpT& z, const FpT& x, const FpT& y)>(op_.fp_mulA_);
 		if (mul == 0) mul = mulC;
-		sqr = (void (*)(FpT& y, const FpT& x))op_.fp_sqrA_;
+		sqr = fp::func_ptr_cast<void (*)(FpT& y, const FpT& x)>(op_.fp_sqrA_);
 		if (sqr == 0) sqr = sqrC;
 #endif
 		*pb = true;
@@ -302,10 +302,13 @@ public:
 		}
 		cybozu::write(pb, os, buf + sizeof(buf) - len, len);
 	}
+	/*
+		mode = Mod : set x mod p if sizeof(S) * n <= 64 else error
+	*/
 	template<class S>
-	void setArray(bool *pb, const S *x, size_t n)
+	void setArray(bool *pb, const S *x, size_t n, mcl::fp::MaskMode mode = fp::NoMask)
 	{
-		*pb = fp::copyAndMask(v_, x, sizeof(S) * n, op_, fp::NoMask);
+		*pb = fp::copyAndMask(v_, x, sizeof(S) * n, op_, mode);
 		toMont();
 	}
 	/*

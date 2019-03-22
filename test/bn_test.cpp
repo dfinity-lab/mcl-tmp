@@ -118,9 +118,12 @@ void testMapToG1()
 	}
 #ifndef MCL_AVOID_EXCEPTION_TEST
 	if (BN::param.cp.b == 2) {
+		Fp c1;
+		bool b = Fp::squareRoot(c1, -3);
+		CYBOZU_TEST_ASSERT(b);
 		CYBOZU_TEST_EXCEPTION(mapToG1(g, 0), cybozu::Exception);
-		CYBOZU_TEST_EXCEPTION(mapToG1(g, BN::param.mapTo.c1_), cybozu::Exception);
-		CYBOZU_TEST_EXCEPTION(mapToG1(g, -BN::param.mapTo.c1_), cybozu::Exception);
+		CYBOZU_TEST_EXCEPTION(mapToG1(g, c1), cybozu::Exception);
+		CYBOZU_TEST_EXCEPTION(mapToG1(g, -c1), cybozu::Exception);
 	}
 #endif
 }
@@ -349,6 +352,7 @@ void testIo(const G1& P, const G2& Q)
 
 CYBOZU_TEST_AUTO(naive)
 {
+	printf("mcl version=%03x\n", mcl::version);
 	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(g_testSetTbl); i++) {
 		const TestSet& ts = g_testSetTbl[i];
 		printf("i=%d curve=%s\n", int(i), ts.name);
@@ -375,6 +379,8 @@ CYBOZU_TEST_AUTO(naive)
 		testPrecomputed(P, Q);
 		testMillerLoop2(P, Q);
 		testBench(P, Q);
+		benchAddDblG1();
+		benchAddDblG2();
 	}
 	int count = (int)clk.getCount();
 	if (count) {

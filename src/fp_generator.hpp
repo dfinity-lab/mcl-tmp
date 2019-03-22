@@ -307,19 +307,20 @@ struct FpGenerator : Xbyak::CodeGenerator {
 		useMulx_ = cpu_.has(Xbyak::util::Cpu::tBMI2);
 		useAdx_ = cpu_.has(Xbyak::util::Cpu::tADX);
 	}
-	void init(Op& op)
+	bool init(Op& op)
 	{
+		if (!cpu_.has(Xbyak::util::Cpu::tAVX)) return false;
 		reset(); // reset jit code for reuse
 		setProtectModeRW(); // read/write memory
 		init_inner(op);
 //		printf("code size=%d\n", (int)getSize());
 		setProtectModeRE(); // set read/exec memory
+		return true;
 	}
 private:
 	void init_inner(Op& op)
 	{
 		op_ = &op;
-		if (!cpu_.has(Xbyak::util::Cpu::tAVX)) return;
 		L(pL_);
 		p_ = reinterpret_cast<const uint64_t*>(getCurr());
 		for (size_t i = 0; i < op.N; i++) {
@@ -376,7 +377,7 @@ private:
 		op.fp_mulA_ = gen_mul();
 		prof_.set("Fp_mul", getCurr());
 		if (op.fp_mulA_) {
-			op.fp_mul = reinterpret_cast<void4u>(op.fp_mulA_); // used in toMont/fromMont
+			op.fp_mul = fp::func_ptr_cast<void4u>(op.fp_mulA_); // used in toMont/fromMont
 		}
 		op.fp_sqrA_ = gen_sqr();
 		prof_.set("Fp_sqr", getCurr());

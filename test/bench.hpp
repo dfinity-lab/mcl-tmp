@@ -1,5 +1,58 @@
 #include <mcl/lagrange.hpp>
 
+void benchAddDblG1()
+{
+	puts("benchAddDblG1");
+	const int C = 100000;
+	G1 P1, P2, P3;
+	hashAndMapToG1(P1, "a");
+	hashAndMapToG1(P2, "b");
+	P1 += P2;
+	P2 += P1;
+	printf("z.isOne()=%d %d\n", P1.z.isOne(), P2.z.isOne());
+	CYBOZU_BENCH_C("G1::add(1)", C, G1::add, P3, P1, P2);
+	P1.normalize();
+	printf("z.isOne()=%d %d\n", P1.z.isOne(), P2.z.isOne());
+	CYBOZU_BENCH_C("G1::add(2)", C, G1::add, P3, P1, P2);
+	CYBOZU_BENCH_C("G1::add(3)", C, G1::add, P3, P2, P1);
+	P2.normalize();
+	printf("z.isOne()=%d %d\n", P1.z.isOne(), P2.z.isOne());
+	CYBOZU_BENCH_C("G1::add(4)", C, G1::add, P3, P1, P2);
+	P1 = P3;
+	printf("z.isOne()=%d\n", P1.z.isOne());
+	CYBOZU_BENCH_C("G1::dbl(1)", C, G1::dbl, P3, P1);
+	P1.normalize();
+	printf("z.isOne()=%d\n", P1.z.isOne());
+	CYBOZU_BENCH_C("G1::dbl(2)", C, G1::dbl, P3, P1);
+}
+
+void benchAddDblG2()
+{
+	puts("benchAddDblG2");
+	const int C = 100000;
+	G2 P1, P2, P3;
+	hashAndMapToG2(P1, "a");
+	hashAndMapToG2(P2, "b");
+	P1 += P2;
+	P2 += P1;
+	printf("z.isOne()=%d %d\n", P1.z.isOne(), P2.z.isOne());
+	CYBOZU_BENCH_C("G2::add(1)", C, G2::add, P3, P1, P2);
+	P1.normalize();
+	printf("z.isOne()=%d %d\n", P1.z.isOne(), P2.z.isOne());
+	CYBOZU_BENCH_C("G2::add(2)", C, G2::add, P3, P1, P2);
+	CYBOZU_BENCH_C("G2::add(3)", C, G2::add, P3, P2, P1);
+	P2.normalize();
+	printf("z.isOne()=%d %d\n", P1.z.isOne(), P2.z.isOne());
+	CYBOZU_BENCH_C("G2::add(4)", C, G2::add, P3, P1, P2);
+	P1 = P3;
+	printf("z.isOne()=%d\n", P1.z.isOne());
+	CYBOZU_BENCH_C("G2::dbl(1)", C, G2::dbl, P3, P1);
+	P1.normalize();
+	printf("z.isOne()=%d\n", P1.z.isOne());
+	CYBOZU_BENCH_C("G2::dbl(2)", C, G2::dbl, P3, P1);
+}
+
+
 void testBench(const G1& P, const G2& Q)
 {
 	G1 Pa;
@@ -85,6 +138,7 @@ void testBench(const G1& P, const G2& Q)
 	CYBOZU_BENCH_C("finalExp      ", 3000, finalExp, e1, e1);
 //exit(1);
 	std::vector<Fp6> Qcoeff;
+	CYBOZU_BENCH_C("precomputeG2  ", C, precomputeG2, Qcoeff, Q);
 	precomputeG2(Qcoeff, Q);
 	CYBOZU_BENCH_C("precomputedML ", C, precomputedMillerLoop, e2, P, Qcoeff);
 }
@@ -131,4 +185,8 @@ void testLagrange()
 	Fr s;
 	mcl::LagrangeInterpolation(s, x, y, k);
 	CYBOZU_TEST_EQUAL(s, c[0]);
+	mcl::LagrangeInterpolation(s, x, y, 1);
+	CYBOZU_TEST_EQUAL(s, y[0]);
+	mcl::evaluatePolynomial(y[0], c, 1, x[0]);
+	CYBOZU_TEST_EQUAL(y[0], c[0]);
 }

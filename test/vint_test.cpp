@@ -6,6 +6,9 @@
 #include <cybozu/benchmark.hpp>
 #include <cybozu/test.hpp>
 #include <cybozu/xorshift.hpp>
+#ifndef DONT_USE_GMP_IN_TEST
+#include <gmpxx.h>
+#endif
 
 #define PUT(x) std::cout << #x "=" << x << std::endl;
 
@@ -551,14 +554,70 @@ CYBOZU_TEST_AUTO(quotRem)
 			"0xfffffffffffff0000000000000000000000000000000000000000000000000000000000000001",
 			"521481209941628322292632858916605385658190900090571826892867289394157573281830188869820088065",
 		},
+		{
+			"0x1230000000000000456",
+			"0x1230000000000000457",
+			"0x1230000000000000456",
+		},
+		{
+			"0x1230000000000000456",
+			"0x1230000000000000456",
+			"0",
+		},
+		{
+			"0x1230000000000000456",
+			"0x1230000000000000455",
+			"1",
+		},
+		{
+			"0x1230000000000000456",
+			"0x2000000000000000000",
+			"0x1230000000000000456",
+		},
+		{
+			"0xffffffffffffffffffffffffffffffff",
+			"0x80000000000000000000000000000000",
+			"0x7fffffffffffffffffffffffffffffff",
+		},
+		{
+			"0xffffffffffffffffffffffffffffffff",
+			"0x7fffffffffffffffffffffffffffffff",
+			"1",
+		},
+		{
+			"0xffffffffffffffffffffffffffffffff",
+			"0x70000000000000000000000000000000",
+			"0x1fffffffffffffffffffffffffffffff",
+		},
+		{
+			"0xffffffffffffffffffffffffffffffff",
+			"0x30000000000000000000000000000000",
+			"0x0fffffffffffffffffffffffffffffff",
+		},
+		{
+			"0xffffffffffffffffffffffffffffffff",
+			"0x10000000000000000000000000000000",
+			"0x0fffffffffffffffffffffffffffffff",
+		},
+		{
+			"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			"0x2523648240000001ba344d80000000086121000000000013a700000000000013",
+			"0x212ba4f27ffffff5a2c62effffffffcdb939ffffffffff8a15ffffffffffff8d",
+		},
+		{
+			"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			"0x2523648240000001ba344d8000000007ff9f800000000010a10000000000000d",
+			"0x212ba4f27ffffff5a2c62effffffffd00242ffffffffff9c39ffffffffffffb1",
+		},
 	};
-	mcl::Vint x, y, r;
+	mcl::Vint x, y, q, r1, r2;
 	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(tbl); i++) {
 		x.setStr(tbl[i].x);
 		y.setStr(tbl[i].y);
-		r.setStr(tbl[i].r);
-		x %= y;
-		CYBOZU_TEST_EQUAL(x, r);
+		r1.setStr(tbl[i].r);
+		mcl::Vint::divMod(&q, r2, x, y);
+		CYBOZU_TEST_EQUAL(r1, r2);
+		CYBOZU_TEST_EQUAL(x, q * y + r2);
 	}
 }
 
@@ -1176,6 +1235,36 @@ CYBOZU_TEST_AUTO(bench)
 	CYBOZU_BENCH_C("sub", N, Vint::sub, z, x, y);
 	CYBOZU_BENCH_C("mul", N, Vint::mul, z, x, y);
 	CYBOZU_BENCH_C("div", N, Vint::div, y, z, x);
+
+	const struct {
+		const char *x;
+		const char *y;
+	} tbl[] = {
+		{
+			"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			"0x2523648240000001ba344d8000000007ff9f800000000010a10000000000000d"
+		},
+		{
+			"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			"0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab",
+		},
+		{
+			"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			"0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001",
+		},
+
+	};
+	for (size_t i = 0; i < CYBOZU_NUM_OF_ARRAY(tbl); i++) {
+		x.setStr(tbl[i].x);
+		y.setStr(tbl[i].y);
+		CYBOZU_BENCH_C("fast div", N, Vint::div, z, x, y);
+#ifndef DONT_USE_GMP_IN_TEST
+		{
+			mpz_class mx(tbl[i].x), my(tbl[i].y), mz;
+			CYBOZU_BENCH_C("gmp", N, mpz_div, mz.get_mpz_t(), mx.get_mpz_t(), my.get_mpz_t());
+		}
+#endif
+	}
 }
 
 struct Seq {
